@@ -1,0 +1,94 @@
+events {
+  worker_connections 1024;
+}
+
+http{ 
+  server {
+    listen ${WEB_PORT};
+    # listen 443 ssl;
+    server_name ${WEB_DOMAIN};
+
+    # ssl_certificate /caminho/para/certificado.crt;
+    # ssl_certificate_key /caminho/para/chave-privada.key;
+
+    location ${WEB_FRONT_PATH} {
+      proxy_pass ${FRONT_URL};
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection 'upgrade';
+      proxy_set_header Host $host;
+      proxy_cache_bypass $http_upgrade;
+    }
+
+    location ${WEB_BACK_PATH} {
+      proxy_pass ${BACK_URL};
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection 'upgrade';
+      proxy_set_header Host $host;
+      proxy_cache_bypass $http_upgrade;
+    }
+  }
+}
+
+
+
+
+
+
+
+
+import mysql, { RowDataPacket } from "mysql2/promise";
+
+export default class DbService {
+  private pool: mysql.Pool;
+
+  constructor(dbHost: string, dbUser: string, dbPassword: string, dbName: string) {
+    this.pool = mysql.createPool({
+      host: dbHost,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName,
+      waitForConnections: true,
+    });
+  }
+
+  async query(sql: string, params?: any[]): Promise<RowDataPacket[]> {
+    try {
+      const [rows] = await this.pool.execute(sql, params);
+      return rows as RowDataPacket[];
+    } catch (err) {
+      console.error(`[MySQL Query Error in query:] Failed to execute query: ${sql} with values: ${JSON.stringify(params)}. Error:`, err);
+      throw err;
+    }
+  }
+
+  async getQuery(sql: string, values: any[] = []): Promise<RowDataPacket[]> {
+    try {
+      const [rows] = await this.pool.execute(sql, values);
+      return rows as RowDataPacket[];
+    } catch (err) {
+      console.error(`[MySQL Query Error in getQuery:] Failed to execute query: ${sql} with values: ${JSON.stringify(values)}. Error:`, err);
+      throw err;
+    }
+  }
+
+  async getExecute(sql: string, values: any[] = []): Promise<RowDataPacket[]> {
+    try {
+      const [rows] = await this.pool.execute(sql, values);
+      return rows as RowDataPacket[];
+    } catch (err) {
+      console.error(`[MySQL Execute Error in getExecute:] Failed to execute statement: ${sql} with values: ${JSON.stringify(values)}. Error:`, err);
+      throw err;
+    }
+  }
+
+  async close(): Promise<void> {
+    try {
+      await this.pool.end();
+    } catch (err) {
+      console.error("[MySQL Close Error in close:] Failed to close the connection pool. Error:", err);
+      throw err;
+    }
+  }
+}
